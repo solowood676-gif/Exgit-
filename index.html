@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EXGit Terminal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: monospace;
+            background: #000;
+            color: #fff;
+            overflow-x: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        #terminal {
+            height: 100vh;
+            width: 100vw;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 10px;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .output-line {
+            margin: 0;
+            padding: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .prompt-line {
+            display: flex;
+            align-items: flex-start;
+            margin-top: 4px;
+        }
+        
+        .prompt {
+            color: #00ff00;
+            margin-right: 4px;
+            flex-shrink: 0;
+        }
+        
+        .command {
+            color: #fff;
+        }
+        
+        .error {
+            color: #ff0000;
+        }
+        
+        .success {
+            color: #00ff00;
+        }
+        
+        .info {
+            color: #00ffff;
+        }
+        
+        #input-container {
+            display: flex;
+            align-items: flex-start;
+            margin-top: 4px;
+        }
+        
+        #prompt-symbol {
+            color: #00ff00;
+            margin-right: 4px;
+            user-select: none;
+            flex-shrink: 0;
+        }
+        
+        #command-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-family: monospace;
+            font-size: 14px;
+            outline: none;
+            padding: 0;
+            width: 100%;
+            min-width: 0;
+        }
+        
+        #command-input::placeholder {
+            color: #555;
+        }
+        
+        /* Editor Overlay */
+        #editor-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            z-index: 1000;
+            flex-direction: column;
+        }
+        
+        #editor-overlay.active {
+            display: flex;
+        }
+        
+        #editor-header {
+            background: #1a1a1a;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        #editor-title {
+            color: #00ff00;
+            font-size: 14px;
+        }
+        
+        #editor-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            background: #1a1a1a;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 5px 15px;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .btn:active {
+            background: #00ff00;
+            color: #000;
+        }
+        
+        #editor-content {
+            flex: 1;
+            background: #000;
+            color: #fff;
+            border: none;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+        }
+        
+        /* Preview Overlay */
+        #preview-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            z-index: 1000;
+            flex-direction: column;
+        }
+        
+        #preview-overlay.active {
+            display: flex;
+        }
+        
+        #preview-header {
+            background: #1a1a1a;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        #preview-title {
+            color: #00ff00;
+            font-size: 14px;
+        }
+        
+        #preview-frame {
+            flex: 1;
+            border: none;
+            background: #fff;
+        }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #000;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+        }
+        
+        /* Mobile */
+        @media (max-width: 768px) {
+            #terminal {
+                padding: 8px;
+            }
+            
+            #command-input, #editor-content {
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="terminal" id="terminal-scroll">
+        <div class="output-line info">Welcome to EXGit Terminal</div>
+        <div class="output-line info">Type 'help' for available commands</div>
+        
+        <div id="input-container">
+            <span id="prompt-symbol">$</span>
+            <input type="text" id="command-input" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </div>
+    </div>
+    
+    <!-- Editor Overlay -->
+    <div id="editor-overlay">
+        <div id="editor-header">
+            <span id="editor-title">Editor</span>
+            <div id="editor-actions">
+                <button class="btn" id="save-btn">Save (Ctrl+S)</button>
+                <button class="btn" id="close-editor-btn">Close (Esc)</button>
+            </div>
+        </div>
+        <textarea id="editor-content" placeholder="Type your content here..."></textarea>
+    </div>
+    
+    <!-- Preview Overlay -->
+    <div id="preview-overlay">
+        <div id="preview-header">
+            <span id="preview-title">Preview</span>
+            <button class="btn" id="close-preview-btn">Close</button>
+        </div>
+        <iframe id="preview-frame"></iframe>
+    </div>
+    
+    <script>
+        const terminal = document.getElementById('terminal');
+        let commandInput = document.getElementById('command-input');
+        let inputContainer = document.getElementById('input-container');
+        
+        let commandHistory = [];
+        let historyIndex = -1;
+        let currentFile = '';
+        let sessionId = localStorage.getItem('exgit_session') || generateSessionId();
+        
+        localStorage.setItem('exgit_session', sessionId);
+        
+        function generateSessionId() {
+            return 'sess_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        }
+        
+        function scrollToBottom() {
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+        
+        function addOutput(text, type = 'normal') {
+            const line = document.createElement('div');
+            line.className = 'output-line ' + type;
+            line.textContent = text;
+            terminal.insertBefore(line, inputContainer);
+            scrollToBottom();
+        }
+        
+        function createNewInputLine() {
+            // Remove old input container
+            if (inputContainer && inputContainer.parentNode) {
+                inputContainer.remove();
+            }
+            
+            // Create new input container
+            inputContainer = document.createElement('div');
+            inputContainer.id = 'input-container';
+            inputContainer.innerHTML = `
+                <span id="prompt-symbol">$</span>
+                <input type="text" id="command-input" autocomplete="off" autocapitalize="off" spellcheck="false">
+            `;
+            
+            terminal.appendChild(inputContainer);
+            commandInput = document.getElementById('command-input');
+            
+            // Attach event listeners
+            attachInputListeners();
+            
+            commandInput.focus();
+            scrollToBottom();
+        }
+        
+        async function executeCommand(cmd) {
+            if (!cmd.trim()) {
+                createNewInputLine();
+                return;
+            }
+            
+            // Add command to history
+            commandHistory.push(cmd);
+            historyIndex = commandHistory.length;
+            
+            // Display the command that was entered
+            const commandLine = document.createElement('div');
+            commandLine.className = 'prompt-line';
+            commandLine.innerHTML = `<span class="prompt">$</span><span class="command">${escapeHtml(cmd)}</span>`;
+            terminal.insertBefore(commandLine, inputContainer);
+            
+            // Handle clear command locally
+            if (cmd.trim() === 'clear') {
+                // Remove all output lines but keep input
+                const children = Array.from(terminal.children);
+                children.forEach(child => {
+                    if (child.id !== 'input-container') {
+                        child.remove();
+                    }
+                });
+                createNewInputLine();
+                return;
+            }
+            
+            // Disable input while processing
+            commandInput.disabled = true;
+            
+            // Send command to server
+            try {
+                const response = await fetch('/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        command: cmd,
+                        session: sessionId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.action === 'edit') {
+                    openEditor(result.filename, result.content || '');
+                } else if (result.action === 'preview') {
+                    openPreview(result.filename, result.url);
+                } else {
+                    // Display output
+                    if (result.output) {
+                        const lines = result.output.split('\n');
+                        lines.forEach(line => {
+                            addOutput(line, result.error ? 'error' : 'success');
+                        });
+                    }
+                }
+            } catch (error) {
+                addOutput('Error: ' + error.message, 'error');
+            }
+            
+            // Create new input line
+            createNewInputLine();
+        }
+        
+        function attachInputListeners() {
+            commandInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const cmd = commandInput.value;
+                    executeCommand(cmd);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (historyIndex > 0) {
+                        historyIndex--;
+                        commandInput.value = commandHistory[historyIndex];
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (historyIndex < commandHistory.length - 1) {
+                        historyIndex++;
+                        commandInput.value = commandHistory[historyIndex];
+                    } else {
+                        historyIndex = commandHistory.length;
+                        commandInput.value = '';
+                    }
+                }
+            });
+        }
+        
+        function openEditor(filename, content) {
+            currentFile = filename;
+            document.getElementById('editor-title').textContent = `Editing: ${filename}`;
+            document.getElementById('editor-content').value = content;
+            document.getElementById('editor-overlay').classList.add('active');
+            document.getElementById('editor-content').focus();
+        }
+        
+        async function saveFile() {
+            if (!currentFile) return;
+            
+            try {
+                const response = await fetch('/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        filename: currentFile,
+                        content: document.getElementById('editor-content').value,
+                        session: sessionId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    alert('Error saving file: ' + result.output);
+                } else {
+                    closeEditor();
+                    addOutput(`File saved: ${currentFile}`, 'success');
+                    createNewInputLine();
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        function closeEditor() {
+            document.getElementById('editor-overlay').classList.remove('active');
+            currentFile = '';
+            document.getElementById('editor-content').value = '';
+            commandInput.focus();
+        }
+        
+        function openPreview(filename, url) {
+            document.getElementById('preview-title').textContent = `Preview: ${filename}`;
+            document.getElementById('preview-frame').src = url + '?session=' + sessionId;
+            document.getElementById('preview-overlay').classList.add('active');
+        }
+        
+        function closePreview() {
+            document.getElementById('preview-overlay').classList.remove('active');
+            document.getElementById('preview-frame').src = '';
+            commandInput.focus();
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Initial setup
+        attachInputListeners();
+        
+        // Button event listeners
+        document.getElementById('save-btn').addEventListener('click', saveFile);
+        document.getElementById('close-editor-btn').addEventListener('click', closeEditor);
+        document.getElementById('close-preview-btn').addEventListener('click', closePreview);
+        
+        // Editor keyboard shortcuts
+        document.getElementById('editor-content').addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeEditor();
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveFile();
+            }
+        });
+        
+        // Focus input on terminal click
+        terminal.addEventListener('click', (e) => {
+            if (e.target === terminal || e.target.classList.contains('output-line')) {
+                commandInput.focus();
+            }
+        });
+        
+        // Focus input initially
+        commandInput.focus();
+    </script>
+</body>
+</html>
